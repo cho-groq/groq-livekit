@@ -35,7 +35,7 @@ async def entrypoint(ctx: JobContext):
             # tool_choice=""
         ),
         tts=groq.TTS(
-            voice="Arthur-PlayAI",
+            voice="Angelo-PlayAI",
         ),
         chat_ctx=initial_ctx,
     )
