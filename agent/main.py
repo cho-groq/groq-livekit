@@ -4,7 +4,7 @@ from livekit.agents.llm import (
     ChatMessage,
 )
 from livekit.agents.voice_assistant import VoiceAssistant
-from livekit.plugins import silero, cartesia, openai
+from livekit.plugins import silero, cartesia, openai, groq
 
 from dotenv import load_dotenv
 
@@ -22,18 +22,20 @@ async def entrypoint(ctx: JobContext):
         messages=[
             ChatMessage(
                 role="system",
-                content="You are the Groq voice assistant. Be nice.",
+                content="You are an assistant that answers kitchen chef questions. Be nice. Respond in plain text, without  styling or markdown or asterisks.",
             )
         ]
     )
 
     assistant = VoiceAssistant(
         vad=ctx.proc.userdata["vad"],
-        stt=openai.stt.STT.with_groq(),
-        llm=openai.LLM.with_groq(),
-        # you would have to edit this one somehow to use playht on groq
-        tts=cartesia.TTS(
-            voice="248be419-c632-4f23-adf1-5324ed7dbf1d",
+        stt=groq.STT(),
+        llm=groq.LLM(
+            model="llama3-8b-8192",
+            # tool_choice=""
+        ),
+        tts=groq.TTS(
+            voice="Arthur-PlayAI",
         ),
         chat_ctx=initial_ctx,
     )
