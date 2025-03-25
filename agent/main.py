@@ -4,7 +4,7 @@ from livekit.agents.llm import (
     ChatMessage,
 )
 from livekit.agents.voice_assistant import VoiceAssistant
-from livekit.plugins import silero, cartesia, openai, groq
+from livekit.plugins import silero, groq
 
 from dotenv import load_dotenv
 
@@ -22,7 +22,7 @@ async def entrypoint(ctx: JobContext):
         messages=[
             ChatMessage(
                 role="system",
-                content="You are an assistant that answers kitchen chef questions. Be nice. Respond in plain text, without  styling or markdown or asterisks.",
+                content="You are an assistant that answers kitchen chef questions. Be nice. Respond in full words and plain text, without styling words or special characters.",
             )
         ]
     )
@@ -35,7 +35,7 @@ async def entrypoint(ctx: JobContext):
             # tool_choice=""
         ),
         tts=groq.TTS(
-            voice="Angelo-PlayAI",
+            voice="Chip-PlayAI",
         ),
         chat_ctx=initial_ctx,
     )
