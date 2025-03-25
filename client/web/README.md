@@ -1,1 +1,0 @@
-LiveKit Cerberus Frontend
