@@ -8,3 +8,4 @@ Flask
 requests
 jsonify
 flask-cors
+groq

@@ -15,7 +15,8 @@ import uuid
 import threading
 import asyncio
 import time
-# from groq import Groq
+from groq import Groq
+import base64
 
 from queue import Queue
 import dataclasses
@@ -30,6 +31,7 @@ class ImageAnalysisMessage:
 image_analysis_queue = Queue()
 
 load_dotenv()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # Chat assistant reference - will be initialized in the entrypoint
 global_assistant = None
@@ -51,6 +53,7 @@ def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+
 def analyze_image(image_path):
     """
     Placeholder function for image analysis.
@@ -65,9 +68,43 @@ def analyze_image(image_path):
     # This is where you would implement your image analysis logic
     # For example, using a machine learning model to analyze the image
     
-    # Placeholder implementation
-    time.sleep(1)  # Simulate processing time
-    return f"I analyzed the image at {image_path}. It appears to be a photograph with interesting visual elements."
+
+    base64_image = ""
+
+    with open(image_path, "rb") as image_file:
+        base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+    # print(base64_image)
+    
+    client = Groq(api_key=GROQ_API_KEY)
+    completion = client.chat.completions.create(
+    model="meta-llama/llama-4-scout-17b-16e-instruct",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Describe the image and where everything is in the image."
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        
+                        "url": f"data:image/jpeg;base64,{base64_image}",
+                    }
+                }
+            ]
+        }
+    ],
+    temperature=1,
+    max_completion_tokens=1024,
+    top_p=1,
+    stream=False,
+    stop=None,
+    )
+    result = completion.choices[0].message
+    print(result.content)
+    return result.content
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
