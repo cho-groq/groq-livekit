@@ -26,7 +26,7 @@ export function HomeInner() {
   return (
     <>
       <Head>
-        <title>Groq Toq</title>
+        <title>Llama4 on Groq</title>
         <meta
           name="description"
           content="Talk to the world's fastest AI voice assistant, powered by Groq"

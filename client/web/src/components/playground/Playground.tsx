@@ -22,6 +22,7 @@ import { ReactNode, useEffect, useMemo, useState } from "react";
 import { Button } from "../button/Button";
 import { MicrophoneButton } from "./MicrophoneButton";
 import { useWindowResize } from "@/hooks/useWindowResize";
+import { APIKeyInput } from "./APIKeyInput";
 
 export interface PlaygroundMeta {
   name: string;
@@ -53,6 +54,9 @@ const mobileBarWidth = 48;
 const barCount = 50;
 const defaultVolumes = Array.from({ length: barCount }, () => [0.0]);
 
+// API endpoint for setting the API key
+const API_KEY_ENDPOINT = "http://localhost:5001/api/set-api-key";
+
 export default function Playground({ onConnect }: PlaygroundProps) {
   const { localParticipant } = useLocalParticipant();
   const windowSize = useWindowResize();
@@ -60,6 +64,10 @@ export default function Playground({ onConnect }: PlaygroundProps) {
     updateOnlyOn: [RoomEvent.ParticipantMetadataChanged],
   });
   const [isMobile, setIsMobile] = useState(false);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [isApiKeyLoading, setIsApiKeyLoading] = useState(false);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
+  
   const agentParticipant = participants.find((p) => p.isAgent);
 
   const roomState = useConnectionState();
@@ -74,6 +82,64 @@ export default function Playground({ onConnect }: PlaygroundProps) {
       localParticipant.setMicrophoneEnabled(true);
     }
   }, [localParticipant, roomState]);
+  
+ // Add error handling for network issues
+ const handleApiKeySubmit = async (key: string) => {
+  setIsApiKeyLoading(true);
+  setApiKeyError(null);
+  
+  console.log("Attempting to send API key to:", API_KEY_ENDPOINT);
+  
+  try {
+    // Check if the server is running first
+    const pingResponse = await fetch("http://localhost:5001/ping", {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    }).catch(err => {
+      console.error("Ping error:", err);
+      throw new Error("Cannot connect to server. Is the Flask server running?");
+    });
+    
+    if (!pingResponse.ok) {
+      throw new Error("Server is running but not responding correctly");
+    }
+    
+    console.log("Server ping successful, sending API key");
+    
+    // Send the API key to the backend with improved error handling
+    const response = await fetch(API_KEY_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ apiKey: key }),
+    });
+    
+    console.log("API key submission response:", response.status);
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.message || 'Failed to set API key');
+    }
+    
+    console.log("API key set successfully");
+    // If successful, store the API key in state
+    setApiKey(key);
+  } catch (error) {
+    console.error("Error setting API key:", error);
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      setApiKeyError('Connection refused. Make sure the Flask server is running at ' + API_KEY_ENDPOINT);
+    } else {
+      setApiKeyError(error instanceof Error ? error.message : 'Failed to set API key');
+    }
+    setApiKey(null);
+  } finally {
+    setIsApiKeyLoading(false);
+  }
+};
 
   const agentAudioTrack = tracks.find(
     (trackRef) =>
@@ -149,8 +215,8 @@ export default function Playground({ onConnect }: PlaygroundProps) {
               <path
                 d="M3.33325 3.3335L12.6666 12.6668M12.6666 3.3335L3.33325 12.6668"
                 stroke="#FF887A"
-                stroke-width="2"
-                stroke-linecap="square"
+                strokeWidth="2"
+                strokeLinecap="square"
               />
             </svg>
           </Button>
@@ -161,6 +227,39 @@ export default function Playground({ onConnect }: PlaygroundProps) {
     const isLoading =
       roomState === ConnectionState.Connecting ||
       (!agentAudioTrack && roomState === ConnectionState.Connected);
+
+    const apiKeyInputSection = (
+      <div className="fixed bottom-2 md:bottom-auto md:absolute left-1/2 md:top-1/2 -translate-y-1/2 -translate-x-1/2 w-11/12 md:w-96 text-center">
+        <motion.div
+          className="flex flex-col gap-3"
+          initial={{
+            opacity: 0,
+            y: 50,
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          exit={{
+            opacity: 0,
+            y: 50,
+          }}
+          transition={{
+            type: "spring",
+            stiffness: 260,
+            damping: 20,
+          }}
+        >
+          <div className="text-center text-base text-gray-700 mb-2">
+            Please enter your Groq API key to continue
+          </div>
+          <APIKeyInput onApiKeySubmit={handleApiKeySubmit} isLoading={isApiKeyLoading} />
+          {apiKeyError && (
+            <div className="text-red-500 text-sm mt-1">{apiKeyError}</div>
+          )}
+        </motion.div>
+      </div>
+    );
 
     const startConversationButton = (
       <div className="fixed bottom-2 md:bottom-auto md:absolute left-1/2 md:top-1/2 -translate-y-1/2 -translate-x-1/2 w-11/12 md:w-auto text-center">
@@ -234,7 +333,8 @@ export default function Playground({ onConnect }: PlaygroundProps) {
         </div>
         <div className="min-h-20 w-full relative">
           <AnimatePresence>
-            {!agentAudioTrack ? startConversationButton : null}
+            {roomState === ConnectionState.Disconnected && !apiKey && !agentAudioTrack ? apiKeyInputSection : null}
+            {roomState === ConnectionState.Disconnected && apiKey && !agentAudioTrack ? startConversationButton : null}
           </AnimatePresence>
           <AnimatePresence>
             {agentAudioTrack ? conversationToolbar : null}
@@ -251,6 +351,9 @@ export default function Playground({ onConnect }: PlaygroundProps) {
     isMobile,
     subscribedVolumes,
     onConnect,
+    apiKey,
+    isApiKeyLoading,
+    apiKeyError
   ]);
 
   return (

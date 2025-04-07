@@ -8,16 +8,10 @@ from livekit.plugins import silero, groq
 
 from dotenv import load_dotenv
 import os
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from werkzeug.utils import secure_filename
-import uuid
-import threading
 import asyncio
 import time
 from groq import Groq
 import base64
-
 from queue import Queue
 import dataclasses
 
@@ -36,28 +30,14 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 # Chat assistant reference - will be initialized in the entrypoint
 global_assistant = None
 
-# Flask app for handling image uploads
-app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
-
 # Configure upload folder
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Configure allowed extensions
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
-def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 def analyze_image(image_path):
     """
-    Placeholder function for image analysis.
-    Replace this with your actual image analysis code.
+    Analyze an image using Groq API
     
     Args:
         image_path (str): Path to the uploaded image
@@ -65,147 +45,133 @@ def analyze_image(image_path):
     Returns:
         str: Analysis result as text
     """
-    # This is where you would implement your image analysis logic
-    # For example, using a machine learning model to analyze the image
+    # Read the current API key
+    api_key = get_api_key()
+    if not api_key:
+        return "Sorry, I couldn't analyze the image because the API key isn't set."
     
-
     base64_image = ""
-
-    with open(image_path, "rb") as image_file:
-        base64_image = base64.b64encode(image_file.read()).decode('utf-8')
-    # print(base64_image)
-    
-    client = Groq(api_key=GROQ_API_KEY)
-    completion = client.chat.completions.create(
-    model="meta-llama/llama-4-scout-17b-16e-instruct",
-    messages=[
-        {
-            "role": "user",
-            "content": [
+    try:
+        with open(image_path, "rb") as image_file:
+            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+        
+        client = Groq(api_key=api_key)
+        completion = client.chat.completions.create(
+            model="meta-llama/llama-4-scout-17b-16e-instruct",
+            messages=[
                 {
-                    "type": "text",
-                    "text": "Describe the image and where everything is in the image."
-                },
-                {
-                    "type": "image_url",
-                    "image_url": {
-                        
-                        "url": f"data:image/jpeg;base64,{base64_image}",
-                    }
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "text",
+                            "text": "Describe the image and where everything is in the image."
+                        },
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{base64_image}",
+                            }
+                        }
+                    ]
                 }
-            ]
-        }
-    ],
-    temperature=1,
-    max_completion_tokens=1024,
-    top_p=1,
-    stream=False,
-    stop=None,
-    )
-    result = completion.choices[0].message
-    print(result.content)
-    return result.content
+            ],
+            temperature=1,
+            max_completion_tokens=1024,
+            top_p=1,
+            stream=False,
+            stop=None,
+        )
+        result = completion.choices[0].message
+        print(result.content)
+        return result.content
+    except Exception as e:
+        print(f"Error analyzing image: {e}")
+        return f"Sorry, I encountered an error while analyzing the image: {str(e)}"
 
-@app.route('/upload', methods=['POST'])
-def upload_image():
-    global global_assistant, image_analysis_queue
+def get_api_key():
+    """
+    Get the API key from either environment variable or file
+    """
+    # First check environment variable
+    api_key = os.getenv("GROQ_API_KEY")
     
-    # Check if the post request has the file part
-    if 'image' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
+    # If not in environment, check the file
+    if not api_key:
+        try:
+            if os.path.exists('groq_api_key.txt'):
+                with open('groq_api_key.txt', 'r') as f:
+                    api_key = f.read().strip()
+                    if api_key:
+                        # Set it in environment for future use
+                        os.environ["GROQ_API_KEY"] = api_key
+        except Exception as e:
+            print(f"Error reading API key file: {e}")
     
-    files = request.files.getlist('image')
-    responses = []
+    return api_key
 
-    for file in files:
-        if file and allowed_file(file.filename):
-            original_filename = secure_filename(file.filename)
-            extension = original_filename.rsplit('.', 1)[1].lower()
-            unique_filename = f"{uuid.uuid4().hex}.{extension}"
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-            file.save(file_path)
-
-            analysis_result = analyze_image(file_path)
-
-            if global_assistant:
-                message_to_say = f"I received an image upload. {analysis_result}"
-                image_analysis_queue.put(ImageAnalysisMessage(
-                    message_to_say=message_to_say,
-                    filename=original_filename,
-                    analysis=analysis_result
-                ))
-
-            responses.append({
-                'success': True,
-                'filename': unique_filename,
-                'original_filename': original_filename,
-                'file_path': file_path,
-                'analysis': analysis_result
-            })
-        else:
-            responses.append({'error': f'File type not allowed: {file.filename}'})
-
-    return jsonify(responses), 200
-    
-    # If user does not select file, browser also
-    # submit an empty part without filename
-    # if file.filename == '':
-    #     return jsonify({'error': 'No selected file'}), 400
-    
-    # if file and allowed_file(file.filename):
-    #     # Generate a unique filename to prevent overwriting
-    #     original_filename = secure_filename(file.filename)
-    #     extension = original_filename.rsplit('.', 1)[1].lower()
-    #     unique_filename = f"{uuid.uuid4().hex}.{extension}"
-        
-    #     file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
-    #     file.save(file_path)
-        
-    #     # Analyze the image
-    #     analysis_result = analyze_image(file_path)
-        
-    #     # If we have an active assistant, queue the message to be processed in the main loop
-    #     if global_assistant:
-    #         message_to_say = f"I received an image upload. {analysis_result}"
+def check_for_new_images():
+    """
+    Check if new images have been uploaded and process them
+    """
+    if os.path.exists('last_uploaded_image.txt'):
+        try:
+            with open('last_uploaded_image.txt', 'r') as f:
+                image_path = f.read().strip()
             
-    #         # Add message to queue to be processed by main loop
-    #         image_analysis_queue.put(ImageAnalysisMessage(
-    #             message_to_say=message_to_say,
-    #             filename=original_filename,
-    #             analysis=analysis_result
-    #         ))
-        
-    #     # Return the file information and analysis
-    #     return jsonify({
-    #         'success': True,
-    #         'filename': unique_filename,
-    #         'original_filename': original_filename,
-    #         'file_path': file_path,
-    #         'analysis': analysis_result
-    #     }), 200
+            # Only process if the file exists
+            if os.path.exists(image_path):
+                # Remove the file so we don't process it again
+                os.remove('last_uploaded_image.txt')
+                
+                # Analyze the image
+                analysis_result = analyze_image(image_path)
+                
+                # Get the filename from the path
+                filename = os.path.basename(image_path)
+                
+                # Add to queue for processing
+                if global_assistant:
+                    message_to_say = f"I received an image upload. {analysis_result}"
+                    image_analysis_queue.put(ImageAnalysisMessage(
+                        message_to_say=message_to_say,
+                        filename=filename,
+                        analysis=analysis_result
+                    ))
+                
+                return True
+        except Exception as e:
+            print(f"Error processing new image: {e}")
+            # Remove the file if there was an error
+            if os.path.exists('last_uploaded_image.txt'):
+                os.remove('last_uploaded_image.txt')
     
-    return jsonify({'error': 'File type not allowed'}), 400
-
-@app.route('/status', methods=['GET'])
-def status():
-    return jsonify({'status': 'API is running'})
-
-def start_flask_app():
-    """Start Flask app in a separate thread"""
-    app.run(debug=False, host='0.0.0.0', port=5000)
+    return False
 
 def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
+
 async def entrypoint(ctx: JobContext):
     global global_assistant, image_analysis_queue
     
-    # Start Flask server in a separate thread
-    flask_thread = threading.Thread(target=start_flask_app)
-    flask_thread.daemon = True  # Daemon thread will be terminated when main thread exits
-    flask_thread.start()
+    # Wait for API key file
+    print("Waiting for API key to be set...")
+    key_set_time = time.time()
+    key_timeout = 300  # 5 minutes timeout
     
+    while time.time() - key_set_time < key_timeout:
+        api_key = get_api_key()
+        if api_key:
+            print("API key loaded")
+            break
+        await asyncio.sleep(1)
+        
+    if not get_api_key():
+        print("No API key received after timeout. Using default key if available.")
+    
+    # Connect to the room
     await ctx.connect(auto_subscribe=AutoSubscribe.AUDIO_ONLY)
-
+    
+    # Initialize chat context
     initial_ctx = ChatContext(
         messages=[
             ChatMessage(
@@ -215,15 +181,17 @@ async def entrypoint(ctx: JobContext):
         ]
     )
 
+    # Initialize voice assistant
     assistant = VoiceAssistant(
         vad=ctx.proc.userdata["vad"],
-        stt=groq.STT(),
+        stt=groq.STT(api_key=get_api_key()),
         llm=groq.LLM(
             model="llama3-8b-8192",
-            # tool_choice=""
+            api_key=get_api_key()
         ),
         tts=groq.TTS(
             voice="Chip-PlayAI",
+            api_key=get_api_key()
         ),
         chat_ctx=initial_ctx,
     )
@@ -231,10 +199,11 @@ async def entrypoint(ctx: JobContext):
     # Store the assistant in the global variable
     global_assistant = assistant
 
+    # Start the assistant
     assistant.start(ctx.room)
     await assistant.say("Hi there, how are you doing today? You can upload images and I'll analyze them for you.", allow_interruptions=True)
     
-    # Main loop to process image analyses
+    # Main loop to process image analyses and check for new uploads
     while True:
         # Check for messages in the queue
         if not image_analysis_queue.empty():
@@ -250,7 +219,10 @@ async def entrypoint(ctx: JobContext):
             
             # Say the message
             await assistant.say(message.message_to_say, allow_interruptions=True)
-            
+        
+        # Check for new uploaded images
+        check_for_new_images()
+        
         # Sleep a short time to avoid CPU hogging
         await asyncio.sleep(0.1)
         
