@@ -1,17 +1,12 @@
-# This is an example Dockerfile that builds a minimal container for running LK Agents
 # syntax=docker/dockerfile:1
 ARG PYTHON_VERSION=3.11.6
 FROM python:${PYTHON_VERSION}-slim
 
-# Prevents Python from writing pyc files.
+# Disable Python bytecode and buffering
 ENV PYTHONDONTWRITEBYTECODE=1
-
-# Keeps Python from buffering stdout and stderr to avoid situations where
-# the application crashes without emitting any logs due to buffering.
 ENV PYTHONUNBUFFERED=1
 
-# Create a non-privileged user that the app will run under.
-# See https://docs.docker.com/develop/develop-images/dockerfile_best-practices/#user
+# Create non-root user
 ARG UID=10001
 RUN adduser \
     --disabled-password \
@@ -21,8 +16,7 @@ RUN adduser \
     --uid "${UID}" \
     appuser
 
-
-# Install gcc and other build dependencies.
+# Install build dependencies
 RUN apt-get update && \
     apt-get install -y \
     gcc \
@@ -31,19 +25,25 @@ RUN apt-get update && \
 
 USER appuser
 
+# Setup cache directory and permissions
 RUN mkdir -p /home/appuser/.cache
 RUN chown -R appuser /home/appuser/.cache
 
 WORKDIR /home/appuser
 
+# Copy and install requirements
 COPY agent/requirements.txt .
 RUN python -m pip install --user --no-cache-dir -r requirements.txt
 
-COPY agent/main.py .
+# Copy app code
+COPY agent/ .
 
-# ensure that any dependent models are downloaded at build-time
+# Pre-download any needed files (e.g., models)
 RUN python main.py download-files
 
-# Run the application.
-ENTRYPOINT ["python", "main.py"]
-CMD ["start"]
+# Expose the Flask server port
+EXPOSE 5001
+
+# Run both main.py and api_server.py
+ENTRYPOINT ["bash", "-c"]
+CMD ["python main.py dev & python api_server.py"]
