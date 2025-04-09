@@ -56,7 +56,7 @@ Valid API keys for Groq and other services
    python main.py dev
    ```
 
-- It'll be on post 5001 because on Mac port 5000 is taken already
+- It'll be on port 5001 because on Mac port 5000 is taken already
 
 ### Frontend Setup (Web Client)
 
