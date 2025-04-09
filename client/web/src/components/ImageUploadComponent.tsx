@@ -51,7 +51,7 @@ export function ImageUploadComponent(): JSX.Element {
     });
 
     try {
-      const response = await fetch('http://localhost:5001/upload', {
+      const response = await fetch('https://groq-livekit-backend-417990686885.us-west1.run.app:5001/upload', {
         method: 'POST',
         body: formData,
       });

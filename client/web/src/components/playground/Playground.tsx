@@ -55,7 +55,7 @@ const barCount = 50;
 const defaultVolumes = Array.from({ length: barCount }, () => [0.0]);
 
 // API endpoint for setting the API key
-const API_KEY_ENDPOINT = "http://localhost:5001/api/set-api-key";
+const API_KEY_ENDPOINT = "https://groq-livekit-backend-417990686885.us-west1.run.app:5001/api/set-api-key";
 
 export default function Playground({ onConnect }: PlaygroundProps) {
   const { localParticipant } = useLocalParticipant();
@@ -92,7 +92,7 @@ export default function Playground({ onConnect }: PlaygroundProps) {
   
   try {
     // Check if the server is running first
-    const pingResponse = await fetch("http://localhost:5001/ping", {
+    const pingResponse = await fetch("https://groq-livekit-backend-417990686885.us-west1.run.app:5001/ping", {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
