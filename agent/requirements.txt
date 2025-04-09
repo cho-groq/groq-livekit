@@ -9,3 +9,4 @@ requests
 jsonify
 flask-cors
 groq
+gunicorn

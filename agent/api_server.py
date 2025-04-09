@@ -5,7 +5,7 @@ import os
 app = Flask(__name__)
 CORS(app, resources={
     r"/*": {
-        "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://groq-livekit-frontend-417990686885.us-west1.run.app/"],
+        "origins": ["http://localhost:3000", "http://127.0.0.1:3000", "https://groq-livekit-frontend-417990686885.us-west1.run.app/", "https://groq-livekit-frontend-417990686885.us-west1.run.app"],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }

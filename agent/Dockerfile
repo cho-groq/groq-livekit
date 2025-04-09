@@ -41,9 +41,9 @@ COPY . .
 # Pre-download any needed files (e.g., models)
 RUN python main.py download-files
 
-# Expose the Flask server port
+# Expose the port (Cloud Run uses $PORT)
 EXPOSE 5001
 
-# Run both main.py and api_server.py
+# Run Gunicorn for Flask app and background task from main.py
 ENTRYPOINT ["bash", "-c"]
-CMD ["python main.py dev & python api_server.py"]
+CMD ["python main.py dev & ~/.local/bin/gunicorn --bind 0.0.0.0:5001 api_server:app"]
