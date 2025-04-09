@@ -32,11 +32,11 @@ RUN chown -R appuser /home/appuser/.cache
 WORKDIR /home/appuser
 
 # Copy and install requirements
-COPY agent/requirements.txt .
+COPY requirements.txt .
 RUN python -m pip install --user --no-cache-dir -r requirements.txt
 
 # Copy app code
-COPY agent/ .
+COPY . .
 
 # Pre-download any needed files (e.g., models)
 RUN python main.py download-files
