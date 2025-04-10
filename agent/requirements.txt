@@ -10,3 +10,4 @@ jsonify
 flask-cors
 groq
 gunicorn
+google-cloud
