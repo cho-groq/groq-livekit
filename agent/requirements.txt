@@ -1,9 +1,9 @@
-livekit-agents
+livekit-agents==0.12.17
 livekit-plugins-openai
 livekit-plugins-silero
 livekit-plugins-cartesia
 python-dotenv
-livekit-plugins-groq
+livekit-plugins-groq==0.1.2
 Flask
 requests
 jsonify

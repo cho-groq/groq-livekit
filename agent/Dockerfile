@@ -5,6 +5,7 @@ FROM python:${PYTHON_VERSION}-slim
 # Disable Python bytecode and buffering
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH="${PYTHONPATH}:/home/appuser"
 
 # Create non-root user
 ARG UID=10001
@@ -37,6 +38,11 @@ RUN python -m pip install --no-cache-dir -r requirements.txt
 
 # Copy app code
 COPY . .
+
+# Before: RUN python main.py download-files to check path
+RUN python -c "import sys, site; print(site.getsitepackages()); print(sys.path)" \
+    && pip list \
+    && find / -type f -name '*voice_assistant*.py' || true
 
 # Pre-download any needed files (e.g., models)
 RUN python main.py download-files
