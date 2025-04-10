@@ -33,7 +33,7 @@ WORKDIR /home/appuser
 
 # Copy and install requirements
 COPY requirements.txt .
-RUN python -m pip install --user --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir -r requirements.txt
 
 # Copy app code
 COPY . .
