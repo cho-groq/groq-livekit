@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from google.cloud import secretmanager
 import os
 
 app = Flask(__name__)
@@ -11,26 +12,51 @@ def ping():
 
 @app.route('/api/set-api-key', methods=['POST'])
 def set_api_key():
-    """Endpoint to receive and set the API key from frontend"""
+    """Endpoint to receive and set the API key in Google Cloud Secret Manager"""
     print("Received request to set API key")
     data = request.json
-    
+
     if not data or 'apiKey' not in data:
         print("Error: API key is missing from request")
         return jsonify({'success': False, 'message': 'API key is required'}), 400
-    
+
     api_key = data['apiKey']
-    print(f"API key received successfully: {api_key[:4]}...")
-    
-    # Save the API key to a file that the main process can read
+    print(f"API key received: {api_key[:4]}...")
+
+    project_id = os.environ.get("GCP_PROJECT_ID")  # Set this in your env
+    secret_id = "groq-api-key"  # Static name used by all services
+
     try:
-        with open('groq_api_key.txt', 'w') as f:
-            f.write(api_key)
-        print("API key saved to file")
+        client = secretmanager.SecretManagerServiceClient()
+        parent = f"projects/{project_id}"
+
+        # Check if the secret exists, create if not
+        try:
+            client.get_secret(request={"name": f"{parent}/secrets/{secret_id}"})
+            print("Secret already exists.")
+        except Exception:
+            client.create_secret(
+                request={
+                    "parent": parent,
+                    "secret_id": secret_id,
+                    "secret": {"replication": {"automatic": {}}},
+                }
+            )
+            print("Secret created.")
+
+        # Add new version
+        client.add_secret_version(
+            request={
+                "parent": f"{parent}/secrets/{secret_id}",
+                "payload": {"data": api_key.encode("UTF-8")},
+            }
+        )
+        print("API key uploaded to Secret Manager.")
         return jsonify({'success': True, 'message': 'API key set successfully'}), 200
+
     except Exception as e:
-        print(f"Error saving API key: {e}")
-        return jsonify({'success': False, 'message': f'Error saving API key: {str(e)}'}), 500
+        print(f"Error uploading API key: {e}")
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
 
 # Image upload endpoints can be added here if needed
 

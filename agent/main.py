@@ -14,6 +14,7 @@ from groq import Groq
 import base64
 from queue import Queue
 import dataclasses
+from google.cloud import secretmanager
 
 @dataclasses.dataclass
 class ImageAnalysisMessage:
@@ -90,25 +91,30 @@ def analyze_image(image_path):
 
 def get_api_key():
     """
-    Get the API key from either environment variable or file
+    Get the API key from environment or Secret Manager.
     """
-    # First check environment variable
+    # First check environment
     api_key = os.getenv("GROQ_API_KEY")
-    
-    # If not in environment, check the file
-    if not api_key:
-        try:
-            if os.path.exists('groq_api_key.txt'):
-                with open('groq_api_key.txt', 'r') as f:
-                    api_key = f.read().strip()
-                    if api_key:
-                        # Set it in environment for future use
-                        os.environ["GROQ_API_KEY"] = api_key
-        except Exception as e:
-            print(f"Error reading API key file: {e}")
-    
-    return api_key
+    if api_key:
+        return api_key
 
+    try:
+        project_id = os.environ.get("GCP_PROJECT_ID")
+        secret_id = "groq-api-key"
+        name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+
+        client = secretmanager.SecretManagerServiceClient()
+        response = client.access_secret_version(request={"name": name})
+        api_key = response.payload.data.decode("UTF-8")
+
+        # Optionally cache in environment
+        os.environ["GROQ_API_KEY"] = api_key
+        return api_key
+
+    except Exception as e:
+        print(f"Error retrieving API key from Secret Manager: {e}")
+        return None
+    
 def check_for_new_images():
     """
     Check if new images have been uploaded and process them
