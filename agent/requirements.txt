@@ -11,3 +11,4 @@ flask-cors
 groq
 gunicorn
 google-cloud
+google-cloud-secret-manager
