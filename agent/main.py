@@ -101,12 +101,14 @@ def get_api_key():
     try:
         project_id = os.environ.get("GCP_PROJECT_ID")
         secret_id = "groq-api-key"
+        print(project_id, secret_id)
         name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
 
         client = secretmanager.SecretManagerServiceClient()
         response = client.access_secret_version(request={"name": name})
+        print("this is the response from the secret manager:", response)
         api_key = response.payload.data.decode("UTF-8")
-
+        print("this is the api key:", api_key)
         # Optionally cache in environment
         os.environ["GROQ_API_KEY"] = api_key
         return api_key
