@@ -9,8 +9,8 @@ import {
 } from "livekit-server-sdk";
 import { TokenResult } from "../../lib/types";
 
-const apiKey = process.env.LIVEKIT_API_KEY;
-const apiSecret = process.env.LIVEKIT_API_SECRET;
+const apiKey = process.env.NEXT_PUBLIC_LIVEKIT_API_KEY;
+const apiSecret = process.env.NEXT_PUBLIC_LIVEKIT_API_SECRET;
 const livekitHost = process.env.NEXT_PUBLIC_LIVEKIT_URL!.replace(
   "wss://",
   "https://"
