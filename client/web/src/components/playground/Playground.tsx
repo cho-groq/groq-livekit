@@ -284,15 +284,15 @@ export default function Playground({ onConnect }: PlaygroundProps) {
           }}
         >
           <Button
-            state="primary"
-            size="large"
-            className={`relative w-full text-base text-black ${
-              isLoading ? "pointer-events-none" : ""
-            }`}
-            onClick={() => {
-              onConnect(roomState === ConnectionState.Disconnected);
-            }}
-          >
+              state="primary"
+              size="large"
+              className={`relative w-full text-base text-black ${isLoading ? "pointer-events-none" : ""}`}
+              onClick={() => {
+                // Initiate connection ONLY after key is set
+                onConnect(true); // this triggers connect(mode)
+                // onConnect(roomState === ConnectionState.Disconnected);
+              }}
+            >
             <div
               className={`w-full ${isLoading ? "opacity-0" : "opacity-100"}`}
             >

@@ -69,7 +69,6 @@ export function RoomComponent() {
       serverUrl={wsUrl}
       token={token}
       room={room}
-      connect={shouldConnect}
       onError={(e) => {
         //setToastMessage({ message: e.message, type: "error" });
         console.error(e);
