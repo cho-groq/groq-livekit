@@ -31,6 +31,10 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 # Chat assistant reference - will be initialized in the entrypoint
 global_assistant = None
 
+print("main.py started")
+print("main.py GCP_PROJECT_ID:", os.environ.get("GCP_PROJECT_ID"))
+
+
 # Configure upload folder
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
@@ -94,16 +98,19 @@ def get_api_key():
     Get the API key from environment or Secret Manager.
     """
     # First check environment
+    print("attempting to get the api key")
     api_key = os.getenv("GROQ_API_KEY")
     if api_key:
+        print("there's an apikey in env already:", api_key)
         return api_key
 
     try:
         project_id = os.environ.get("GCP_PROJECT_ID")
         secret_id = "groq-api-key"
-        print(project_id, secret_id)
         name = f"projects/{project_id}/secrets/{secret_id}/versions/latest"
+        print("Fetching secret from:", name)
 
+        print("getting api key fron GCP", project_id, secret_id)
         client = secretmanager.SecretManagerServiceClient()
         response = client.access_secret_version(request={"name": name})
         print("this is the response from the secret manager:", response)
@@ -114,8 +121,9 @@ def get_api_key():
         return api_key
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Error retrieving API key from Secret Manager: {e}")
-        return None
     
 def check_for_new_images():
     """
@@ -235,4 +243,6 @@ async def entrypoint(ctx: JobContext):
         await asyncio.sleep(0.1)
         
 if __name__ == "__main__":
+    print("About to start LiveKit app")
     cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, prewarm_fnc=prewarm))
+    print("LiveKit app started")

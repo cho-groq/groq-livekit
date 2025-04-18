@@ -6,6 +6,9 @@ import os
 app = Flask(__name__)
 CORS(app) # any
 
+print("api_server.py GCP_PROJECT_ID:", os.environ.get("GCP_PROJECT_ID"))
+
+
 @app.route('/ping', methods=['GET'])
 def ping():
     return jsonify({'message': 'pong'})
